@@ -93,7 +93,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.170.0",
     "vaul": "^1.1.0",
-    "vite": "^5.4.14",            //<-- moved here
+    "vite": "^5.4.14",
     "vite-plugin-glsl": "^1.3.1",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
