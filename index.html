@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio-Reactive Liquid Blob</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="ui-container">
+        <div id="controls">
+            <!-- Button Group for better layout -->
+            <div class="button-group">
+                <button id="start-button">Use Microphone</button>
+                <button id="file-button">Load Audio File</button>
+            </div>
+            <p>or Drop an Audio File (.mp3, .wav)</p>
+        </div>
+        <div id="stats-overlay" style="display: none;">
+            <div id="audio-info">
+                <p>Audio Level:</p>
+                <div id="level-container">
+                    <div id="level-bar"></div>
+                </div>
+            </div>
+            <div>FPS: <span id="fps-counter">...</span></div>
+            <div>
+                <label>
+                    <input type="checkbox" id="bloom-toggle" checked>
+                    Bloom
+                </label>
+                <input type="range" id="bloom-slider" min="0" max="2" step="0.1" value="0.5">
+            </div>
+             <div id="error-message" style="color: #ff8080;"></div>
+        </div>
+    </div>
+
+    <canvas id="three-canvas"></canvas>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

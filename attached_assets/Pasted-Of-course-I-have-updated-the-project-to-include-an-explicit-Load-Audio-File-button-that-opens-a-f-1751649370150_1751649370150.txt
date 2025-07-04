@@ -1,0 +1,607 @@
+Of course. I have updated the project to include an explicit "Load Audio File" button that opens a file picker.
+
+Here are the updated files. The primary changes are in index.html to add the new button and in main.js to handle its click event. A minor addition was made to style.css for better button layout.
+
+Summary of Changes
+
+index.html: Added a new <button id="file-button">Load Audio File</button> and grouped the buttons together for better layout. The text was also clarified.
+
+style.css: Added a simple flex style for the .button-group to align the two buttons horizontally.
+
+main.js: In the setupEventListeners method, I added logic for the new button. It works by creating a hidden <input type="file"> element, which is programmatically "clicked" when the user clicks the visible button. This is a standard technique to have a fully styled file-upload button.
+
+1. index.html (Updated)
+
+A new button with the ID file-button has been added inside a div.button-group.
+
+Generated html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio-Reactive Liquid Blob</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="ui-container">
+        <div id="controls">
+            <!-- Button Group for better layout -->
+            <div class="button-group">
+                <button id="start-button">Use Microphone</button>
+                <button id="file-button">Load Audio File</button>
+            </div>
+            <p>or Drop an Audio File (.mp3, .wav)</p>
+        </div>
+        <div id="stats-overlay" style="display: none;">
+            <div id="audio-info">
+                <p>Audio Level:</p>
+                <div id="level-container">
+                    <div id="level-bar"></div>
+                </div>
+            </div>
+            <div>FPS: <span id="fps-counter">...</span></div>
+            <div>
+                <label>
+                    <input type="checkbox" id="bloom-toggle" checked>
+                    Bloom
+                </label>
+                <input type="range" id="bloom-slider" min="0" max="2" step="0.1" value="0.5">
+            </div>
+             <div id="error-message" style="color: #ff8080;"></div>
+        </div>
+    </div>
+
+    <canvas id="three-canvas"></canvas>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
+
+2. style.css (Updated)
+
+A new class .button-group is added to manage the layout of the two action buttons.
+
+Generated css
+/* General page setup */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #000000;
+    color: #ffffff;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+}
+
+/* The Three.js canvas should fill the entire screen */
+#three-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    outline: none;
+}
+
+/* Main UI container positioned at the top left */
+#ui-container {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    padding: 15px;
+    background-color: rgba(20, 20, 20, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    max-width: 320px; /* Adjusted max-width */
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* NEW: Style for the button container */
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+/* Control elements styling */
+#controls button {
+    flex-grow: 1; /* Make buttons share space */
+    padding: 10px 15px;
+    background-color: #4a4af0;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 13px;
+}
+
+#controls button:hover {
+    background-color: #6a6aff;
+}
+
+#controls p {
+    margin: 5px 0 0;
+    color: #ccc;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Stats overlay styling */
+#stats-overlay {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#audio-info p {
+    margin: 0 0 5px 0;
+}
+
+#level-container {
+    width: 100%;
+    height: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+#level-bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #00ffff, #ff00ff);
+    transition: width 0.05s linear;
+}
+
+/* Checkbox and Slider styling */
+#stats-overlay label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+input[type="range"] {
+    width: 100px;
+    vertical-align: middle;
+}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Css
+IGNORE_WHEN_COPYING_END
+3. main.js (Updated)
+
+The setupEventListeners method now creates a hidden file input and attaches events to it and the new visible button. The rest of the file remains the same.
+
+Generated javascript
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// --- SETTINGS ---
+// Tweak these constants to change the visual and audio behavior
+const SETTINGS = {
+    camera: {
+        dollySpeed: 0.1,
+        dollyDistance: 3,
+    },
+    blob: {
+        noiseSpeed: 0.05,
+        baseDisplacement: 0.8,
+        colorSpeed: 0.1,
+    },
+    audio: {
+        bassThreshold: 150, // Hz
+        midThreshold: 2000, // Hz
+        beatDetection: {
+            smoothing: 0.8, // a value between 0 and 1
+            thresholdMultiplier: 1.5,
+            decay: 0.97,
+        },
+        bassScale: { min: 0.9, max: 1.3 },
+        midDisplacement: 1.5,
+        highColorSpeed: 1.5,
+    },
+    postProcessing: {
+        bloomStrength: 0.5,
+        bloomThreshold: 0.1,
+        bloomRadius: 0.8,
+    }
+};
+
+// --- GLSL SHADERS --- (Shader code is identical to the previous version, collapsed for brevity)
+const vertexShader = `
+    uniform float u_time;
+    uniform float u_amplitude;
+    uniform float u_frequency;
+    uniform float u_beat_flash;
+    uniform float u_audio_displacement;
+
+    varying vec3 v_normal;
+    varying vec3 v_position;
+    varying float v_noise;
+
+    // 3D Simplex Noise, by Stefan Gustavson
+    // (https://github.com/stegu/webgl-noise)
+    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+    vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+    float snoise(vec3 v) {
+        const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+        const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+        vec3 i  = floor(v + dot(v, C.yyy));
+        vec3 x0 = v - i + dot(i, C.xxx);
+        vec3 g = step(x0.yzx, x0.xyz);
+        vec3 l = 1.0 - g;
+        vec3 i1 = min(g.xyz, l.zxy);
+        vec3 i2 = max(g.xyz, l.zxy);
+        vec3 x1 = x0 - i1 + C.xxx;
+        vec3 x2 = x0 - i2 + C.yyy;
+        vec3 x3 = x0 - D.yyy;
+        i = mod289(i);
+        vec4 p = permute(permute(permute(
+            i.z + vec4(0.0, i1.z, i2.z, 1.0))
+            + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+            + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+        float n_ = 0.142857142857;
+        vec3 ns = n_ * D.wyz - D.xzx;
+        vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+        vec4 x_ = floor(j * ns.z);
+        vec4 y_ = floor(j - 7.0 * x_);
+        vec4 x = x_ * ns.x + ns.yyyy;
+        vec4 y = y_ * ns.x + ns.yyyy;
+        vec4 h = 1.0 - abs(x) - abs(y);
+        vec4 b0 = vec4(x.xy, y.xy);
+        vec4 b1 = vec4(x.zw, y.zw);
+        vec4 s0 = floor(b0)*2.0 + 1.0;
+        vec4 s1 = floor(b1)*2.0 + 1.0;
+        vec4 sh = -step(h, vec4(0.0));
+        vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+        vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+        vec3 p0 = vec3(a0.xy,h.x);
+        vec3 p1 = vec3(a0.zw,h.y);
+        vec3 p2 = vec3(a1.xy,h.z);
+        vec3 p3 = vec3(a1.zw,h.w);
+        vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+        p0 *= norm.x;
+        p1 *= norm.y;
+        p2 *= norm.z;
+        p3 *= norm.w;
+        vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+        m = m * m;
+        return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+    }
+
+    void main() {
+        v_normal = normal;
+        v_position = position;
+
+        float noise = snoise(position * u_frequency + u_time);
+        v_noise = noise;
+
+        float displacement = u_amplitude * noise * (1.0 + u_audio_displacement);
+        vec3 new_position = position + normal * displacement;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(new_position, 1.0);
+    }
+`;
+const fragmentShader = `
+    uniform float u_time;
+    uniform float u_color_speed;
+    uniform float u_beat_flash;
+    
+    varying vec3 v_normal;
+    varying vec3 v_position;
+    varying float v_noise;
+
+    // Color palette function
+    vec3 palette(float t) {
+        vec3 a = vec3(0.5, 0.5, 0.5); // Indigo base
+        vec3 b = vec3(0.5, 0.5, 0.5); // Cyan tint
+        vec3 c = vec3(1.0, 1.0, 1.0); // Magenta/Orange highlights
+        vec3 d = vec3(0.3, 0.4, 0.5); // Phase shifts
+        return a + b * cos(6.28318 * (c * t + d));
+    }
+
+    void main() {
+        // Base color swirling over time
+        float time_factor = u_time * u_color_speed;
+        vec3 base_color = palette(time_factor + v_noise * 0.1);
+
+        // Fresnel effect for rim lighting
+        vec3 view_dir = normalize(cameraPosition - v_position);
+        float fresnel = 1.0 - dot(v_normal, view_dir);
+        fresnel = pow(fresnel, 2.0); // Tweak power for intensity
+        vec3 fresnel_color = vec3(0.8, 0.8, 1.0) * fresnel;
+
+        // Combine colors and add audio-reactive brightness
+        vec3 final_color = base_color + fresnel_color;
+        final_color *= (1.0 + u_beat_flash);
+
+        gl_FragColor = vec4(final_color, 0.75); // Translucent alpha
+    }
+`;
+
+
+// --- MAIN APP CLASS ---
+class App {
+    constructor() {
+        this.init();
+        this.setupEventListeners();
+    }
+
+    init() {
+        // --- Core Three.js Setup ---
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000000);
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.z = 12;
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: document.querySelector('#three-canvas'),
+            antialias: true,
+            alpha: true,
+        });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.clock = new THREE.Clock();
+
+        // --- Controls ---
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.enablePan = false;
+        this.controls.enableZoom = false; // Custom dolly handled in animation loop
+        
+        // --- Geometry & Material ---
+        const geometry = new THREE.IcosahedronGeometry(4, 64);
+        this.material = new THREE.ShaderMaterial({
+            uniforms: {
+                u_time: { value: 0.0 },
+                u_amplitude: { value: SETTINGS.blob.baseDisplacement },
+                u_frequency: { value: 0.3 },
+                u_color_speed: { value: SETTINGS.blob.colorSpeed },
+                u_beat_flash: { value: 0.0 },
+                u_audio_displacement: { value: 0.0 },
+            },
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        });
+
+        this.blob = new THREE.Mesh(geometry, this.material);
+        this.scene.add(this.blob);
+
+        // --- Post-Processing (Bloom) ---
+        const renderScene = new RenderPass(this.scene, this.camera);
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        this.bloomPass.threshold = SETTINGS.postProcessing.bloomThreshold;
+        this.bloomPass.strength = SETTINGS.postProcessing.bloomStrength;
+        this.bloomPass.radius = SETTINGS.postProcessing.bloomRadius;
+
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(renderScene);
+        this.composer.addPass(this.bloomPass);
+        
+        // --- Audio Setup ---
+        this.audio = {
+            ready: false,
+            context: null,
+            analyser: null,
+            freqData: null,
+            timeData: null,
+            beat: {
+                average: 0,
+                value: 0
+            }
+        };
+        
+        // --- Performance Stats ---
+        this.fpsCounter = document.getElementById('fps-counter');
+        this.frameCount = 0;
+        this.lastFPSTime = performance.now();
+
+        // Start animation loop
+        this.animate();
+    }
+
+    setupEventListeners() {
+        window.addEventListener('resize', this.onWindowResize.bind(this));
+        
+        // --- UPDATED: Event Listeners for Audio ---
+        const startButton = document.getElementById('start-button');
+        const fileButton = document.getElementById('file-button');
+        
+        // Create a hidden file input element
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'audio/*';
+        fileInput.style.display = 'none'; // Keep it hidden
+        document.body.appendChild(fileInput); // Add to DOM to be interactive
+
+        // Mic button
+        startButton.addEventListener('click', () => {
+            this.setupAudio('mic');
+        });
+
+        // "Load File" button triggers the hidden file input
+        fileButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // Listen for file selection on the hidden input
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.setupAudio('file', file);
+            }
+            fileInput.value = null; // Reset for re-selection of the same file
+        });
+        
+        // Drag and Drop
+        window.addEventListener('dragover', (e) => e.preventDefault());
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('audio/')) {
+                this.setupAudio('file', file);
+            }
+        });
+
+        // UI Controls
+        document.getElementById('bloom-toggle').addEventListener('change', (e) => {
+            this.bloomPass.enabled = e.target.checked;
+        });
+        document.getElementById('bloom-slider').addEventListener('input', (e) => {
+            this.bloomPass.strength = parseFloat(e.target.value);
+        });
+    }
+    
+    async setupAudio(sourceType, file = null) {
+        if (this.audio.context) return; // Already initialized
+
+        try {
+            this.audio.context = new (window.AudioContext || window.webkitAudioContext)();
+            this.audio.analyser = this.audio.context.createAnalyser();
+            this.audio.analyser.fftSize = 512;
+            this.audio.analyser.smoothingTimeConstant = SETTINGS.audio.beatDetection.smoothing;
+
+            let source;
+            if (sourceType === 'mic') {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                source = this.audio.context.createMediaStreamSource(stream);
+            } else if (sourceType === 'file' && file) {
+                const audioElement = new Audio(URL.createObjectURL(file));
+                audioElement.loop = true;
+                audioElement.play();
+                source = this.audio.context.createMediaElementSource(audioElement);
+            }
+            
+            source.connect(this.audio.analyser);
+            this.audio.analyser.connect(this.audio.context.destination);
+
+            this.audio.freqData = new Uint8Array(this.audio.analyser.frequencyBinCount);
+            this.audio.timeData = new Uint8Array(this.audio.analyser.frequencyBinCount);
+            this.audio.ready = true;
+            
+            // Update UI
+            document.getElementById('controls').style.display = 'none';
+            document.getElementById('stats-overlay').style.display = 'flex';
+            document.getElementById('error-message').innerText = '';
+
+        } catch (error) {
+            console.error('Error setting up audio:', error);
+            document.getElementById('error-message').innerText = 'Could not access audio source. Please grant permission.';
+        }
+    }
+    
+    updateAudio() {
+        if (!this.audio.ready) return;
+
+        this.audio.analyser.getByteFrequencyData(this.audio.freqData);
+        this.audio.analyser.getByteTimeDomainData(this.audio.timeData);
+
+        const freqData = this.audio.freqData;
+        const binCount = this.audio.analyser.frequencyBinCount;
+        const nyquist = this.audio.context.sampleRate / 2;
+
+        // --- Map Frequency Bands ---
+        const bassIndex = Math.ceil(SETTINGS.audio.bassThreshold / (nyquist / binCount));
+        const midIndex = Math.ceil(SETTINGS.audio.midThreshold / (nyquist / binCount));
+
+        const bassEnergy = this.getAverage(freqData, 0, bassIndex) / 255;
+        const midEnergy = this.getAverage(freqData, bassIndex, midIndex) / 255;
+        const highEnergy = this.getAverage(freqData, midIndex, binCount - 1) / 255;
+
+        // Bass -> Scale
+        const scale = THREE.MathUtils.mapLinear(bassEnergy, 0, 0.7, SETTINGS.audio.bassScale.min, SETTINGS.audio.bassScale.max);
+        this.blob.scale.setScalar(THREE.MathUtils.lerp(this.blob.scale.x, scale, 0.1));
+
+        // Mid -> Displacement
+        this.material.uniforms.u_audio_displacement.value = midEnergy * SETTINGS.audio.midDisplacement;
+
+        // High -> Color Speed
+        this.material.uniforms.u_color_speed.value = SETTINGS.blob.colorSpeed + highEnergy * SETTINGS.audio.highColorSpeed;
+        
+        // --- Beat Detection ---
+        const totalVolume = this.getAverage(this.audio.timeData, 0, binCount);
+        if (totalVolume > this.audio.beat.average * SETTINGS.audio.beatDetection.thresholdMultiplier) {
+            this.audio.beat.value = 1.0; // Trigger beat
+        }
+        
+        // Update rolling average
+        this.audio.beat.average = THREE.MathUtils.lerp(this.audio.beat.average, totalVolume, 0.1);
+        
+        // Apply and decay beat flash
+        this.material.uniforms.u_beat_flash.value = this.audio.beat.value;
+        this.audio.beat.value *= SETTINGS.audio.beatDetection.decay;
+        
+        // Update UI level bar
+        document.getElementById('level-bar').style.width = `${Math.min(100, (totalVolume / 128) * 100)}%`;
+    }
+    
+    getAverage(data, start, end) {
+        let sum = 0;
+        for (let i = start; i < end; i++) {
+            sum += data[i];
+        }
+        return sum / (end - start);
+    }
+
+    onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    updateFPS() {
+        this.frameCount++;
+        const now = performance.now();
+        if (now >= this.lastFPSTime + 1000) {
+            this.fpsCounter.textContent = this.frameCount;
+            this.frameCount = 0;
+            this.lastFPSTime = now;
+        }
+    }
+
+    animate() {
+        requestAnimationFrame(this.animate.bind(this));
+
+        const elapsedTime = this.clock.getElapsedTime();
+        this.material.uniforms.u_time.value = elapsedTime * SETTINGS.blob.noiseSpeed;
+        
+        this.updateAudio();
+        this.updateFPS();
+
+        // Slow camera dolly in/out
+        const dollyOffset = Math.sin(elapsedTime * SETTINGS.camera.dollySpeed) * SETTINGS.camera.dollyDistance;
+        this.camera.position.z = 12 + dollyOffset;
+        
+        this.controls.update();
+        this.composer.render();
+    }
+}
+
+// --- Start the application ---
+new App();
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+JavaScript
+IGNORE_WHEN_COPYING_END

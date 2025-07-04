@@ -1,0 +1,128 @@
+/* General page setup */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #000000;
+    color: #ffffff;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+}
+
+/* The Three.js canvas should fill the entire screen */
+#three-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    outline: none;
+}
+
+/* Main UI container positioned at the top left */
+#ui-container {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    padding: 15px;
+    background-color: rgba(20, 20, 20, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 1000;
+}
+
+/* Style for the button container */
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+/* Control elements styling */
+#controls button {
+    flex-grow: 1;
+    padding: 10px 15px;
+    background-color: #4a4af0;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 13px;
+}
+
+#controls button:hover {
+    background-color: #6a6aff;
+}
+
+#controls button:disabled {
+    background-color: #666;
+    cursor: not-allowed;
+}
+
+#controls p {
+    margin: 5px 0 0;
+    color: #ccc;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Stats overlay styling */
+#stats-overlay {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#audio-info p {
+    margin: 0 0 5px 0;
+}
+
+#level-container {
+    width: 100%;
+    height: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+#level-bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #00ffff, #ff00ff);
+    transition: width 0.05s linear;
+}
+
+/* Checkbox and Slider styling */
+#stats-overlay label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+input[type="range"] {
+    width: 100px;
+    vertical-align: middle;
+}
+
+input[type="checkbox"] {
+    cursor: pointer;
+}
+
+#error-message {
+    color: #ff8080;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Drag and drop styling */
+body.drag-over {
+    background-color: #001122;
+}
+
+body.drag-over #ui-container {
+    border-color: #00ffff;
+    background-color: rgba(0, 255, 255, 0.1);
+}
